@@ -4,42 +4,63 @@ import numpy as np
 # from rl_nldr.data_provider.data_maker import create_S_hat, apply_selected_funcs
 # from torch.utils.data import Dataset, DataLoader, TensorDataset
 from rl_nldr.experiments.Experiment import Experiment
+from rl_nldr.models.model_1 import Model
+
 #*******************User Inputs******************************
-
 from sklearn.datasets import fetch_lfw_people
-lfw_people = fetch_lfw_people(min_faces_per_person = 70, resize = 0.4)
-image_count,image_height,image_width = lfw_people.images.shape[0], lfw_people.images.shape[1], lfw_people.images.shape[2]
-S = lfw_people.images.reshape(image_count, image_width * image_height).T #(1850,1288) : 1288 images of dimension 1850 each
+import sys, os
 
-train_cut = int(0.8*S.shape[1])
-S_train = S[:,:train_cut]
-S_test = S[:,train_cut:]
+# random_dataset
+# S = np.random.random((5,15))
+
+# image_dataset
+# lfw_people = fetch_lfw_people(min_faces_per_person = 70, resize = 0.4)
+# image_count,image_height,image_width = lfw_people.images.shape[0], lfw_people.images.shape[1], lfw_people.images.shape[2]
+# S = lfw_people.images.reshape(image_count, image_width * image_height).T #(1850,1288) : 1288 images of dimension 1850 each
+
+dataset_path = './datasets/'
+
+if not os.path.exists(dataset_path):
+    os.makedirs(dataset_path)
+
+data_file = 'random_dataset.npy'
+
+# np.save(f'{dataset_path+data_file}',S)
+
 
 input_params = {
     'is_training': 1,
-    'trunc_dim':10,
+    'trunc_dim':3,
     'library_functions':["np.sin(_)","(_)","(_)**2","(_)**3","(_)**4"],
     'num_library_functions_select':2,
-    'num_epochs':10,
-    'num_samples':100,
-    'num_samples_each_batch':10,
-    'selection_length':8,
-    'sub_selection_length':4,
-    'chosen_model':'model_1'
+    'num_epochs':1,
+    'num_samples_total':4,
+    'num_samples_each_batch':2,
+    'selection_length':3,
+    'sub_selection_length':1,
+    'chosen_model':'model_1',
+    'data_path': dataset_path + data_file,
+    'model':'model_1',
+    'learning_rate': 1e-3
 }
 
 #***********************************************************
 
+exp = Experiment(input_params)
+# data = np.load(input_params['data_path'])
+
+
+# test =  [1,2,3,4]
+# ds = SelectionDataset(test)
+
+# # print(type(test_obj))
+# ds = SelectionDataset(test_obj)
 
 if input_params['is_training'] == 1:
-    input_params['training_data'] = S_train
-    exp = Experiment(input_params)
-    # exp.train()
-else:
-    input_params['testing_data'] = S_test
-    exp = Experiment(input_params)
-    # exp.test()
+    exp.train()
 
+# else:
+#     # exp.test()
 
 
 # library = np.array(input_params['library_functions'])

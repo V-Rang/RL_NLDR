@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, TensorDataset
-from utils import random_selection_arr_maker
+from rl_nldr.utils.utils import random_selection_arr_maker
 
 class SelectionDataset(Dataset):
     def __init__(self,data):
@@ -11,10 +11,16 @@ class SelectionDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        return torch.tensor(self.data[index], dtype = torch.int32)
+        return torch.tensor(self.data[index], dtype = torch.float32)
 
 
-def create_input(num_library_functions, num_library_functions_select, selection_length, sub_selection_length, trunc_svd_shape, num_samples_create):
+def create_input(num_library_functions, 
+                 num_library_functions_select,
+                 selection_length, 
+                 sub_selection_length,
+                 trunc_svd_shape,
+                 num_samples_total,
+                 num_samples_each_batch):
     '''
     Input:
     num_library_functions: Total number of functions in the library.
@@ -35,7 +41,7 @@ def create_input(num_library_functions, num_library_functions_select, selection_
     num_networks_type_2 = new_shape % selection_length
     num_networks_type_3 = (new_shape//selection_length) - num_networks_type_2
         
-    for i in range(num_samples_create):
+    for i in range(num_samples_total):
         lib_selection_arr = random_selection_arr_maker(num_library_functions, num_library_functions_select)
         
         selection_arr_type_2 = np.array([])
@@ -45,15 +51,13 @@ def create_input(num_library_functions, num_library_functions_select, selection_
         selection_arr_type_3 = np.array([])
         for j in range(num_networks_type_3):
             selection_arr_type_3 = np.concatenate( (selection_arr_type_3,random_selection_arr_maker( selection_length,sub_selection_length )), axis = 0)     
-
-        # print(lib_selection_arr.shape, selection_arr_type_2.shape, selection_arr_type_3.shape)
-        
+      
         sample_array = np.concatenate((lib_selection_arr, selection_arr_type_2, selection_arr_type_3 ))
 
         all_samples.append(sample_array)
+
+    data_set = SelectionDataset(all_samples)
+    data_loader = DataLoader(data_set, batch_size=num_samples_each_batch, shuffle=True)
     
-    return SelectionDataset(all_samples)
+    return data_set, data_loader
 
-
-# test_dataset = create_input(num_library_functions=5,num_library_functions_select=3, selection_length=4,sub_selection_length=2,trunc_svd_shape=10,num_samples_create=2)
-# test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True)
