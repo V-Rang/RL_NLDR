@@ -2,7 +2,8 @@ from rl_nldr.models import model_1
 from rl_nldr.data_provider.data_maker import data_maker, create_S_hat
 import numpy as np
 import torch
-from rl_nldr.utils.utils import compute_reconstr_error
+from rl_nldr.utils.utils import compute_reconstr_error, visual
+from tqdm import tqdm
 
 class Experiment():
     def __init__(self,setting) -> None:
@@ -17,21 +18,23 @@ class Experiment():
 
     #for one sample:
     def train(self):
-        train_data, _, train_dataloader = self._get_data('train')
+        S_train, _, train_dataloader = self._get_data('train')
+        S_test = self._get_data('test') 
         
         #creating S_hat:
-        U_trunc, S_ref, S_hat = create_S_hat(train_data, self.setting['trunc_dim']) 
+        U_trunc, S_train_ref, S_train_hat = create_S_hat(S_train, self.setting['trunc_dim']) 
 
         model = self.model_dict[self.setting['model']].Model(
             len(self.setting['library_functions']),
             self.setting['num_library_functions_select'],
-            S_hat.shape[0],
+            S_train_hat.shape[0],
             self.setting['selection_length']
         )
 
         best_samples = [] #best sample in each epoch
-        
-        for epoch in range(self.setting['num_epochs']):        
+        batch_reward_list = [] #preserving rewards of all batches for plot.
+                
+        for epoch in tqdm(range(self.setting['num_epochs'])):        
             # in each epoch, for batch with highest total reward, preserve sample with
             # highest sample reward. 
             best_batch_reward = -np.inf
@@ -86,8 +89,8 @@ class Experiment():
                             bg += sg 
                         
                     # #error calc:
-                    sample_V_bar, sample_reconstr_error = compute_reconstr_error(train_data, S_ref, U_trunc, S_hat, self.setting['library_functions'], sample.detach().numpy())
-                    sample_reward =  - np.prod(sample_probability_array) * (sample_reconstr_error**2)
+                    sample_V_bar, sample_reconstr_error = compute_reconstr_error(S_train, S_train_ref, U_trunc, S_train_hat, self.setting['library_functions'], sample.detach().numpy())
+                    sample_reward = - np.prod(sample_probability_array) * (sample_reconstr_error**2)
                     batch_reward += sample_reward
                     
                     # at end of given sample
@@ -98,10 +101,13 @@ class Experiment():
                             'selection_arr': sample,
                             'probability_arr': sample_probability_array,
                             'reward': sample_reward,
-                            'sample_V_bar': sample_V_bar
+                            'sample_V_bar': sample_V_bar,
+                            'U_trunc': U_trunc,
+                            'library_functions': self.setting['library_functions']
                         }        
                 
                 # at end of a given batch:
+                batch_reward_list.append(batch_reward)
                 if batch_reward > best_batch_reward:
                     best_batch_reward = batch_reward
                     best_sample_epoch = best_sample
@@ -118,184 +124,20 @@ class Experiment():
                 if(model.num_networks_3 != 0):
                     for param, grad in zip(model.net3.parameters(), batch_grads_network_3):
                         param.data += self.setting['learning_rate']* (1/self.setting['num_samples_each_batch'])* grad
-
-                # print(batch_grads_network_1)
-            # for param in model.net1.parameters():
-            #     print(param)
-            # print(batch_grads_network_1)
-            # for param, grad in zip(model.net1.parameters(), batch_grads_network_1):
-            #     param.data += (1/self.setting['num_samples_each_batch'])* grad
-        
-            # for param in model.net1.parameters():
-            #     print(param)
-            # print('\n')
-            # for param in model.net1.parameters():
-            #     print(param.data)
-                    
-                # batch_grads_network_1 *= (1/self.setting['num_samples_each_batch'])
-                # batch_grads_network_2 *= (1/self.setting['num_samples_each_batch'])
-                # batch_grads_network_2 *= (1/self.setting['num_samples_each_batch'])
-                
-                # # batch_grads_network_1 = [torch.zeros_like(param) for param in model.net1.parameters()]
-                # for param,grads in zip(model.net1.parameters(), batch_grads_network_1):
-                #     params += self.setting['learning_rate']*batch_grads_network_1
-                
-
-                
             
             # at end of each epoch:
             best_samples.append(best_sample_epoch)                    
                 
-         
-                
         #at end of all runs
         np.save('best_samples',np.array(best_samples))
         
-            
-            
+        np.save('batch_rewards',np.array(batch_reward_list))
+        visual(batch_reward_list)
         
-        
-
-
-    #train global
-    # def train(self):
-    #     train_data, train_dataset, train_dataloader = self._get_data('train')
-        
-    #     #creating S_hat:
-    #     U_trunc, S_ref, S_hat = create_S_hat(train_data, self.setting['trunc_dim']) 
-
-    #     curr_best_batch_reward = -np.inf
-    #     for epoch in range(self.setting['num_epochs']):        
-    #         for _, batch in enumerate(train_dataloader):
-    #             curr_batch_reward, curr_batch_best_sample = batch_train(
-    #                 train_data,
-    #                 S_ref,
-    #                 S_hat,
-    #                 U_trunc,
-    #                 batch,
-    #                 self.setting['library_functions'],
-    #                 self.setting['selection_length'],
-    #                 curr_best_batch_reward
-    #             )
-                
-    #             if curr_batch_reward > curr_best_batch_reward:
-    #                 curr_best_batch_reward = curr_batch_reward
-    #                 curr_best_sample = curr_batch_best_sample
-                
-    #             #update_weights_biases at end of each iteration.
-                
-                
-    # #train batch
-    # def batch_train(S_train, S_train_ref, S_hat, U_trunc, batch,
-    #                 library_functions, selection_length,curr_best_batch_reward):
-        
-    #     curr_batch_reward = 0.
-    #     best_sample_reward = -np.inf
-        
-    #     for _, sample in enumerate(batch):
-    #         sample_probability_array  = model(S_hat,
-    #                                           sample,
-    #                                           library_functions,
-    #                                           selection_length)
-            
-    #         sample_V_bar, sample_reconstr_err = compute_reconstruction_error(S_train,
-    #                                                                          S_train_ref,
-    #                                                                          U_trunc,
-    #                                                                          S_hat,
-    #                                                                          sample)
-            
-    #         #this should be a one-liner
-    #         sample_reward = compute_reward(sample_probability_array, sample_reconstr_err)
-    #         if(sample_reward > best_sample_reward):
-    #             best_sample_reward = sample_reward
-                
-    #             best_sample = {'selection_array': sample,
-    #                            'probability_array': sample_probability_array,
-    #                            'V_bar': sample_V_bar,
-    #                            'reconstruction_error': sample_reconstr_err}
-            
-    #         curr_batch_reward += sample_reward
-            
-    #     if(curr_batch_reward > curr_best_batch_reward):
-    #         return curr_batch_reward, best_sample         
-        
-    #     return -np.inf, None
-    
-
-    #train sample
+        # error computation:
+        # 1. training - linear and nl. approx.
     
         
-        # for epoch in range(self.setting['num_epochs']):
-        #     current_best_batch_reward = -np.inf
-        #     current_batch_reward = 0.
-            
-        #     for i, sample in enumerate(train_dataloader):
-                
-        #         outputs = model(S_hat, 
-        #                         sample,
-        #                         self.setting['library_functions'],
-        #                         self.setting['selection_length'])
-
-                
-                
-                # if i== 1:
-                #     break
-
-                # for a given batch:
-                # have to preserve each sample selection arrays, prob values
-                # 
-                #outputs: [Probability values], S_reconstr
-
-                
-                # current_batch_reward += current_sample_reward
-                # # at end of each set of 'm' samples
-                # if(i !=0 and i % self.setting['num_samples_each_batch'] == 0):
-                    
-                #     #update current best batch reward
-                #     if(current_batch_reward > current_best_batch_reward):
-                #         current_best_batch_reward = current_batch_reward
-
-                #         #preserve best sample in current batch:
-                #         cur_best_sample = {
-                #             'probability_values': _,
-                #             'selection_array': sample[0],
-                #             'S_nonlinear':S_nonlinear
-                #         }
-                    
-                    #update gradients
-                    
-                    
-                    
-                    
-                
-
-                # outputs = model(S_hat, 
-                #                 sample[0],
-                #                 self.setting['library_functions'],
-                #                 self.setting['selection_length'],
-                #                 self.setting['sub_selection_length'])
-
-
-
-                # # print(S_hat, '\n',sample[0])
-                # S_mod = apply_selected_funcs(S_hat,
-                #                             self.setting['library_functions'],
-                #                             sample[0][:len(self.setting['library_functions'])]
-                #                             )
-                # # outputs: S_reconstructed, array of probability values for each
-                # # selection array.
-                # outputs = model(S_mod,
-                #                 sample,
-                #                 self.setting['selection_length'],
-                #                 self.setting['sub_selection_length'])
-                
-                #update grads at end of "num_samples_per_batch"
-                
-                # print(sample)
-                # for each sample, 
-            
-            
         
-        
-    
-    
+        # train_errors = training_errors(train_data, S_ref, )
+        # 2. training - nl approx. 

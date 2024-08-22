@@ -3,6 +3,7 @@ import random
 import torch
 import torch.nn as nn
 from typing import Tuple
+import matplotlib.pyplot as plt
 
 def random_selection_arr_maker(k: int,l: int) -> np.array:
     '''
@@ -89,4 +90,15 @@ def compute_reconstr_error(S, S_ref, U_trunc, S_hat, library_functions, selectio
     
     return V_bar, reconstr_err
         
+def visual(batch_rewards: np.array) -> None:
+    '''
+    visualize batch rewards in training.
+    '''
+    plt.plot(batch_rewards)
+    plt.xlabel('batch index')
+    plt.ylabel('batch reward value')
+    plt.tight_layout()
+    plt.savefig('batch_reward_plot')
+
+
 
