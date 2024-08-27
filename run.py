@@ -1,11 +1,11 @@
 # %% importing modules
 import numpy as np
-# from  rl_nldr.data_provider.data_loader import SelectionDataset, create_input
-# from rl_nldr.data_provider.data_maker import create_S_hat, apply_selected_funcs
-# from torch.utils.data import Dataset, DataLoader, TensorDataset
 from rl_nldr.experiments.Experiment import Experiment
 from rl_nldr.models.model_1 import Model
-
+import torch
+from rl_nldr.utils.utils import compute_reconstr_error
+from rl_nldr.utils.compare import compare_corresp_selection, compare_all_selection
+from rl_nldr.utils.metrics import reconstruction_error
 #*******************User Inputs******************************
 from sklearn.datasets import fetch_lfw_people
 import sys, os
@@ -25,9 +25,6 @@ if not os.path.exists(dataset_path):
 
 data_file = 'random_dataset.npy'
 
-# np.save(f'{dataset_path+data_file}',S)
-
-
 input_params = {
     'is_training': 1,
     'trunc_dim':3,
@@ -41,52 +38,54 @@ input_params = {
     'chosen_model':'model_1',
     'data_path': dataset_path + data_file,
     'model':'model_1',
-    'learning_rate': 1e-3
+    'learning_rate': 1e-3,
+    'rewards_each_batch_file':'rewards_batch.npy', # rewards for each batch   
+    'best_samples_each_batch_file': 'best_samples_batch.npy', # best sample of each batch.
+    'best_sample_reconstruction_train_file': 'training_reconstruction_errors.npy', # best sample (selection array and linear, non-linear error) for training data. 
+    'best_sample_reconstruction_test_file': 'testing_reconstruction_errors.npy', # best sample (selection array and linear, non-linear error) for testing data.
+    'best_manual_sample_same_selection_file': 'manual_selection_same_array.npy', # best sample (selection array and error) for same number of library functions, selection elements. 
+    'best_manual_sample_overall_file': 'manual_selection_overall.npy' # best sample (selection array and error) for arbitrary number of library functions, selection elements.
 }
 
 #***********************************************************
-
 exp = Experiment(input_params)
-# data = np.load(input_params['data_path'])
-
-
-# test =  [1,2,3,4]
-# ds = SelectionDataset(test)
-
-# # print(type(test_obj))
-# ds = SelectionDataset(test_obj)
 
 if input_params['is_training'] == 1:
     exp.train()
 
-# else:
-#     # exp.test()
+# best sample in each batch:
+best_samples = np.load(input_params['best_samples_each_batch_file'], allow_pickle=True)
 
+# best sample overall:
+best_sample = max(best_samples, key=lambda x: x['reward'])
 
-# library = np.array(input_params['library_functions'])
+# linear and non-linear reconstruction errors for training and testing data for best sample:
+training_reconstruction_errors = np.load(f'{input_params["best_sample_reconstruction_train_file"]}', allow_pickle=True).item()
+testing_reconstruction_errors = np.load(f'{input_params["best_sample_reconstruction_test_file"]}', allow_pickle=True).item()
 
-# U_trunc,S_ref,S_hat = create_S_hat(S_train,input_params['trunc_dim'])
-# sel_array = random_selection_arr_maker(len(library),input_params['num_library_functions_select'])
-# S_mod = apply_selected_funcs(S_hat, library, sel_array)
+print('Training reconstruction errors for best sample (Linear and non-linear):', 
+      training_reconstruction_errors['linear_error'],
+      training_reconstruction_errors['nonlinear_error'])
 
-# test_dataset = create_input(num_library_functions=len(input_params['library_functions']),
-#                             num_library_functions_select=input_params['num_library_functions_select'],
-#                             selection_length=input_params['selection_length'],
-#                             sub_selection_length=input_params['sub_selection_length'],
-#                             trunc_svd_shape=S_hat.shape[0],
-#                             num_samples_create=input_params['num_samples'])
+print('Testing reconstruction errors for best sample (Linear and non-linear):', 
+      testing_reconstruction_errors['linear_error'],
+      testing_reconstruction_errors['nonlinear_error'])
 
-# test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True)
+#best selection arr and error
+print('Best manual selection array and error:',
+      best_sample['selection_arr'],
+      best_sample['reconstr_err'])
 
+# manual selection by iterating through all possible SIMILAR choices of library array and
+# selection arrays. 
+best_selection_corresp = compare_corresp_selection(exp, best_samples, input_params)
+print('Best manual selection array and error corresponding to same number of library and selection elements:',
+      best_selection_corresp['selection_arr'],
+      best_selection_corresp['error'])
 
-
-#code for 1 sample -> put it in a separate function for cleaner code:
-# Input: S_mod, selection_length, sub_selection_length, 3 types of networks already created. 
-# Output: All selection arrays (library, network choices), all output probabilities, reconstructed error.
-
-#create model class that takes in the above inputs and returns the outputs:
-
-# creating input of 1s and 0s for the library and all selection arrays based on the following info:
-# 1. len(library) 
-# 2. number of library functions to select
-# 3. S_mod.shape[0]
+# manual selection by iterating through all possible choices of library array and
+# selection arrays. 
+best_selection_overall = compare_all_selection(exp, best_samples, input_params)
+print('Best manual selection array and error corresponding to arbitrary number of library and selection elements:',
+      best_selection_overall['selection_arr'],
+      best_selection_overall['error'])

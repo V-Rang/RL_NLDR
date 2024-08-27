@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from rl_nldr.utils.utils import compute_reconstr_error, visual
 from tqdm import tqdm
+from rl_nldr.utils.metrics import reconstruction_error
 
 class Experiment():
     def __init__(self,setting) -> None:
@@ -19,7 +20,7 @@ class Experiment():
     #for one sample:
     def train(self):
         S_train, _, train_dataloader = self._get_data('train')
-        S_test = self._get_data('test') 
+        S_test, _, _ = self._get_data('test') 
         
         #creating S_hat:
         U_trunc, S_train_ref, S_train_hat = create_S_hat(S_train, self.setting['trunc_dim']) 
@@ -54,8 +55,6 @@ class Experiment():
                 # return dictionary with network outputs and grad for each possible sample.
                 lib_selection_output_grad = model._compute_lib_output_grad(batch[0][:len(self.setting['library_functions'])])
                 
-                # print(lib_selection_output_grad.keys()) 
-                
                 # 1. sum up all sample rewards to compute batch reward.
                 # 2. preserve the best sample in batch - if batch has highest average reward, preserve the best sample.
                 # to preserve: sample selection arr, 
@@ -88,7 +87,7 @@ class Experiment():
                         for bg, sg in zip(batch_grads_network_3, sample_grads_network_3):
                             bg += sg 
                         
-                    # #error calc:
+                    # error calc:
                     sample_V_bar, sample_reconstr_error = compute_reconstr_error(S_train, S_train_ref, U_trunc, S_train_hat, self.setting['library_functions'], sample.detach().numpy())
                     sample_reward = - np.prod(sample_probability_array) * (sample_reconstr_error**2)
                     batch_reward += sample_reward
@@ -103,7 +102,9 @@ class Experiment():
                             'reward': sample_reward,
                             'sample_V_bar': sample_V_bar,
                             'U_trunc': U_trunc,
-                            'library_functions': self.setting['library_functions']
+                            'library_functions': self.setting['library_functions'],
+                            'trunc_dim': self.setting['trunc_dim'],
+                            'reconstr_err': sample_reconstr_error
                         }        
                 
                 # at end of a given batch:
@@ -128,16 +129,27 @@ class Experiment():
             # at end of each epoch:
             best_samples.append(best_sample_epoch)                    
                 
-        #at end of all runs
-        np.save('best_samples',np.array(best_samples))
+        # at end of all runs
+        np.save(f'{self.setting["best_samples_each_batch_file"]}',np.array(best_samples))
         
-        np.save('batch_rewards',np.array(batch_reward_list))
+        np.save(f'{self.setting["rewards_each_batch_file"]}',np.array(batch_reward_list))
         visual(batch_reward_list)
         
+        # reconstruction errors for best sample choice:
+        best_sample = max(best_samples, key=lambda x: x['reward'])
+        
+        # linear and non-linear reconstruction errors for best sample:
+        training_reconstruction_errors = reconstruction_error(S_train, best_sample)        
+        testing_reconstruction_errors = reconstruction_error(S_test, best_sample)
+        
+        np.save(f'{self.setting["best_sample_reconstruction_train_file"]}', training_reconstruction_errors)
+        np.save(f'{self.setting["best_sample_reconstruction_test_file"]}', testing_reconstruction_errors)
+        
+        
+
         # error computation:
         # 1. training - linear and nl. approx.
-    
-        
         
         # train_errors = training_errors(train_data, S_ref, )
         # 2. training - nl approx. 
+        
