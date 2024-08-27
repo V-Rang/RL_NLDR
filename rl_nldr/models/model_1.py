@@ -3,11 +3,6 @@ import torch.nn as nn
 import numpy as np
 import itertools
 from typing import Tuple
-
-# sample_probability_array  = model(S_hat,
-#                                                 sample,
-#                                                 self.setting['library_functions'],
-#                                                 self.setting['selection_length'])
                     
 class Model(nn.Module):
     def __init__(self,library_len, num_library_fns, org_dim, selection_length):
@@ -70,20 +65,13 @@ class Model(nn.Module):
             
             output_grad_lib_array[comb] = {'output':np.exp(out.detach().numpy()[0]), 'gradients':grads}
                     
-        #should return prob. output and grad of log(probability) for all combs:                
         for val in output_grad_lib_array.values():
             val['output'] /= output_sum[0]
             for zp, gp in zip(val['gradients'], grad_sum):
                 zp -= (1/output_sum[0]) * gp
         
-        # val_sum = 0.
-        # for val in output_grad_lib_array.values():
-        #     val_sum += val['output']
-        # print(val_sum)
-        
         return output_grad_lib_array
         
-    # out, grad = self._compute_selarr_output_grad(inp)
 
     def _compute_selarr_output_grad(self, inp_arr: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         '''
@@ -181,121 +169,4 @@ class Model(nn.Module):
         return {'sample_probability_array': probability_arr,
                 'grads_network_2': grads_network_2,
                 'grads_network_3': grads_network_3,
-                }
-
-        
-        # for i in range(self.num_networks_3):
-        #     out, grad = self._compute_selarr_output_grad(x[ind:ind+self.selection_length])
-        #     sample_probability_array.append(out)
-        #     for zp, gp  in zip(zero_grads_network_3, grad):
-        #         zp += gp
-        #     ind += self.selection_length
-        
-        # # inp = torch.tensor(x[:self.selection_length + 1 + 1], requires_grad = True)
-        # inp = x[:self.selection_length + 1 + 1]
-        # inp.requires_grad_(True)
-                
-        # out, grad = self._compute_selarr_output_grad(x)
-        
-        # out = self.net2(inp)
-        # grads = torch.autograd.grad(outputs=out, inputs=self.net2.parameters(), create_graph=True)
-
-        # for zp, gp in zip(zero_grads, grads):
-        #     zp += gp
-        
-
-        
-        # inp = x[:self.selection_length + 1 + 1]
-        # index = self.selection_length + 1 + 1
-        # for i in range(self.num_networks_2):
-        #     probability = self.net2(inp)
-        #     inp = torch.cat((probability, x[index:index + self.selection_length + 1]))
-        #     out = 
-        #     index = index + self.selection_length + 1
-
-
-        
-        # print(self.num_networks_2, self.num_networks_3)
-        
-        # lib_input = x[:self.library_len]
-        # choices = int(lib_input.sum().item())
-        # indices = [1 for i in range(choices)] + [0 for i in range(len(lib_input) - choices)]
-        # combinations = list(set(itertools.permutations(indices)))
-        
-        # output_grad_lib_array = {}
-        
-        
-        # for comb in combinations:
-        #     inp = torch.tensor(comb,dtype=torch.float32, requires_grad=True)
-        #     out = self.net1(inp)
-
-        #     # print(inp,'\n',out)
-        #     grads = torch.autograd.grad(outputs=out, inputs=self.net1.parameters(), create_graph=True)
-
-        #     output_grad_lib_array[comb] = {'output':out, 'gradients':grads}
-        #     # print(output_grad_lib_array[inp]['output'])
-
-
-        # sum_output_lib_arr = sum(np.exp(sub_dict['output'].detach().numpy()) for sub_dict in output_grad_lib_array.values())  #sum(np.exp(output))
-        
-        
-        # print( output_grad_lib_array[tuple(lib_input.to(torch.int).tolist())]  )
-        
-            # print(comb, grads)
-            
-                                    
-            # out.backward()
-            
-            # output_grad_lib_array[comb] = out
-                
-            # for name, param in self.net1.named_parameters():
-            #     if param.grad is not None:
-            #         print(f'Gradient of {name}:')
-            #         print(param.grad)
-            
-            # break
-        
-        
-        # print(output_grad_lib_array)
-                        
-            
-            
-            
-        
-        # probability_arrs = []
-        # print(p1)
-        
-        # for _ in range(self.num_networks_2):
-            
-        
-        
-        
-    #     lib_selection_arr = x[:self.library_len]
-        
-    #     #output, grad from network of type 1.
-    #     prob, grad_1 = output_grad_computation(lib_selection_arr)
-        
-    #     new_ind = len(lib_selection_arr)
-    #     for i in range(self.num_networks_2):
-    #         selection_arr = x[new_ind : new_ind + self.selection_length+1]
-    #         prob, grad_2 = output_grad_computation(torch.cat(selection_arr, prob))
-    #         new_ind += self.selection_length+1
-        
-    #     for i in range(self.num_networks_3):
-    #         selection_arr = x[new_ind : new_ind + self.selection_length]
-    #         prob, grad_3 = output_grad_computation(torch.cat(selection_arr, prob))
-    #         new_ind += self.selection_length
-        
-        
-        
-                
-        
-        
-        
-        
-        
-        
-        # create a separate function that for any [101...], computes 
-        # log(e^{y_{2}1}/(summation()))
-        
-        
+                }      

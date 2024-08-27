@@ -143,13 +143,5 @@ class Experiment():
         testing_reconstruction_errors = reconstruction_error(S_test, best_sample)
         
         np.save(f'{self.setting["best_sample_reconstruction_train_file"]}', training_reconstruction_errors)
-        np.save(f'{self.setting["best_sample_reconstruction_test_file"]}', testing_reconstruction_errors)
-        
-        
-
-        # error computation:
-        # 1. training - linear and nl. approx.
-        
-        # train_errors = training_errors(train_data, S_ref, )
-        # 2. training - nl approx. 
-        
+        np.save(f'{self.setting["best_sample_reconstruction_test_file"]}', testing_reconstruction_errors)        
+            

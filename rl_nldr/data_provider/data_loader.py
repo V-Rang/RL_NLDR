@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader, TensorDataset
+from torch.utils.data import Dataset, DataLoader
 from rl_nldr.utils.utils import random_selection_arr_maker
 
 class SelectionDataset(Dataset):
